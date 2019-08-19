@@ -1,6 +1,7 @@
 import csv
 
 import yaml
+from itertools import combinations
 
 
 def get_primitive_polynomial(n, k):
@@ -117,6 +118,30 @@ def get_cyclotomic_cosets(n):
         all_cyclotomic_members ^= cyclotomic_sets[i]
         i += 1
     return cyclotomic_sets
+
+
+def get_polynomial_from_roots(roots, n, logarithmic_table):
+    if roots == 0:
+        return 0
+    number_of_field_elements = 2 ** n - 1
+    root_array = get_positions_of_binary_ones(roots)
+    polynomial = 1 << len(root_array)
+    for i in range(len(root_array)):
+        coefficient = 0
+        for combination in combinations(root_array, i + 1):
+            coefficient ^= logarithmic_table[sum(combination) % number_of_field_elements]
+        addition = coefficient << len(root_array) - i - 1
+        polynomial ^= addition
+    return polynomial
+
+
+def get_positions_of_binary_ones(number):
+    length = len(bin(number)) - 2
+    result = []
+    for i in range(0, length):
+        if 1 & (number >> i):
+            result.append(i)
+    return result
 
 
 def trim_polynomial(polynomial, length):

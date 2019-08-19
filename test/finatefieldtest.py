@@ -6,7 +6,9 @@ from finatefield import get_primitive_polynomial, \
     build_logarithmic_table, \
     multiply_polynomials, \
     divide_polynomials, \
-    get_cyclotomic_cosets
+    get_cyclotomic_cosets, \
+    get_positions_of_binary_ones, \
+    get_polynomial_from_roots
 
 
 class FinateFieldTest(unittest.TestCase):
@@ -61,7 +63,6 @@ class FinateFieldTest(unittest.TestCase):
         assert divide_polynomials(polynomial5, polynomial6) == (0b11, 0b11)
 
     def test_get_cyclotomic_cosets(self):
-        print()
         n = 8
         result = 0
         counter = 0
@@ -71,6 +72,18 @@ class FinateFieldTest(unittest.TestCase):
         result ^= 1
         assert result == 2 ** (2 ** n - 1) - 1
         assert counter > n
+
+    def test_get_positions_of_binary_ones(self):
+        print()
+        for i in get_positions_of_binary_ones(0b110110):
+            print("Value {0}".format(i))
+
+    def test_get_polynomial_from_roots(self):
+        print()
+        n = 4
+        print("{0:b}".format(
+            get_polynomial_from_roots(get_cyclotomic_cosets(n)[3], n, build_logarithmic_table(n, 0b10011))
+        ))
 
 
 if __name__ == '__main__':
