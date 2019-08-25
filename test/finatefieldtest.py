@@ -8,7 +8,7 @@ from finatefield import get_primitive_polynomial, \
     divide_polynomials, \
     get_cyclotomic_cosets, \
     get_positions_of_binary_ones, \
-    get_polynomial_from_roots
+    get_polynomial_from_roots, polynomial_of_argument_to_power
 
 
 class FinateFieldTest(unittest.TestCase):
@@ -19,8 +19,8 @@ class FinateFieldTest(unittest.TestCase):
     d = 2 * t + 1
 
     def test_get_primitive_polynomial(self):
-        for i in get_primitive_polynomial(10, 3) or []:
-            print(i)
+        print()
+        print("{0:b}".format(get_primitive_polynomial(10, 3)))
 
     def test_trim_polynomial(self):
         assert (trim_polynomial(15, 3)) == 7
@@ -61,6 +61,14 @@ class FinateFieldTest(unittest.TestCase):
         polynomial5 = 0b110110
         polynomial6 = 0b10011
         assert divide_polynomials(polynomial5, polynomial6) == (0b11, 0b11)
+        assert divide_polynomials(0b100100100000001, 0b11001) == (1863, 14)
+        assert multiply_polynomials(1863, 0b11001) ^ 14 == 18689
+
+    def test_polynomial_of_argument_to_power(self):
+        assert polynomial_of_argument_to_power(0b11001, 3) == 0b1001000000001
+        assert polynomial_of_argument_to_power(0b1, 4) == 0b1
+        assert polynomial_of_argument_to_power(0b100, 3) == 0b1000000
+        assert polynomial_of_argument_to_power(0b100, 1) == 0b100
 
     def test_get_cyclotomic_cosets(self):
         n = 8
@@ -82,7 +90,7 @@ class FinateFieldTest(unittest.TestCase):
         print()
         n = 4
         print("{0:b}".format(
-            get_polynomial_from_roots(get_cyclotomic_cosets(n)[3], n, build_logarithmic_table(n, 0b10011))
+            get_polynomial_from_roots(get_cyclotomic_cosets(n)[1], n, build_logarithmic_table(n, 0b10011))
         ))
 
 
