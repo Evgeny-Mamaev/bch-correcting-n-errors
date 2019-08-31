@@ -1,6 +1,7 @@
 import unittest
 
-from bch import BCH, calculate_generator_polynomial, encode, reverse_int, get_nth_bit, decode, get_syndromes
+from bch import BCH, calculate_generator_polynomial, encode, reverse_int, get_nth_bit, get_syndromes, \
+    berlekamp_massey_decode, get_order_of_sigma, find_roots_of_sigma, get_error_positions
 from finatefield import get_primitive_polynomial, get_cyclotomic_cosets, build_logarithmic_table
 
 
@@ -59,8 +60,42 @@ class BchTest(unittest.TestCase):
             t=t
         ) == [8, 1, 6, 2]
 
-    def test_decode(self):
-        assert decode(0b110110110110110, self.n) == 0b110110100000000
+    def test_berlekamp_massey_decode(self):
+        n = 4
+        t = 3
+        primitive_polynomial = 0b11001
+        received_message = 0b100100100000001
+        cyclotomic_cosets = get_cyclotomic_cosets(n)
+        logarithmic_table = build_logarithmic_table(n, primitive_polynomial)
+        syndromes = get_syndromes(
+            primitive_polynomial=primitive_polynomial,
+            received_message=received_message,
+            cyclotomic_cosets=cyclotomic_cosets,
+            logarithmic_table=logarithmic_table,
+            n=n,
+            t=t
+        )
+        assert berlekamp_massey_decode(
+            syndromes=[11, 7, 13, 14, 0, 11],
+            primitive_polynomial=primitive_polynomial,
+            logarithmic_table=logarithmic_table,
+            n=n,
+            t=t) == [0, 11, 2, 3, -1, -1]
+
+    def test_find_roots_of_sigma(self):
+        n = 4
+        primitive_polynomial = 0b11001
+        logarithmic_table = build_logarithmic_table(n, primitive_polynomial)
+        assert find_roots_of_sigma([0, 11, 2, 3, -1, -1], n, logarithmic_table) == [0, 3, 9]
+        pass
+
+    def test_get_order_of_sigma(self):
+        assert get_order_of_sigma([-1, 0, 0, -1, -1]) == 2
+        assert get_order_of_sigma([1, 0, 0, 0, 1]) == 4
+        assert get_order_of_sigma([-1, -1, -1, -1, -1]) == 0
+
+    def test_get_error_positions(self):
+        assert sorted(get_error_positions([0, 3, 9], 4)) == [1, 6, 12]
 
 
 if __name__ == '__main__':
