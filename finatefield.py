@@ -12,7 +12,10 @@ def get_primitive_polynomial(n, k):
     corresponding to the
     parameters polynomial.
     :param n: length of a code.
-    :param k: number of errors.
+    :param k: param in the table
+    corresponds to the size of the
+    polynomial. Maps 1 -> 3,
+    2 -> 5, 3 -> 7
     :return: a primitive polynomial
     in a binary representation.
     """

@@ -1,7 +1,9 @@
+import random
 import unittest
 
 from bch import BCH, calculate_generator_polynomial, encode, reverse_int, get_nth_bit, get_syndromes, \
-    berlekamp_massey_decode, get_order_of_sigma, find_roots_of_sigma, get_error_positions
+    get_order_of_sigma, find_roots_of_sigma, get_error_positions, decode, \
+    get_random_number_of_hamming_weight, berlekamp_massey_decode, get_hamming_weight
 from finatefield import get_primitive_polynomial, get_cyclotomic_cosets, build_logarithmic_table
 
 
@@ -31,7 +33,8 @@ class BchTest(unittest.TestCase):
         print("{0:b}".format(generator_polynomial))
 
     def test_encode(self):
-        assert encode(0b111010001, 0b110110100000000) == 0b110110110110110
+        n = 4
+        assert encode(0b111010001, 0b1101101, n) == 0b110110110110110
 
     def test_reverse_int(self):
         a = 0b1101000000
@@ -45,26 +48,49 @@ class BchTest(unittest.TestCase):
         assert get_nth_bit(0b11001001, 0) == 1
 
     def test_get_syndromes(self):
-        n = 4
-        t = 2
-        primitive_polynomial = 0b11001
-        received_message = 0b100100100000001
+        n = 5
+        t = 3
+        primitive_polynomial = 0b100101
+        received_message = 0b100101000000001
         cyclotomic_cosets = get_cyclotomic_cosets(n)
         logarithmic_table = build_logarithmic_table(n, primitive_polynomial)
-        assert get_syndromes(
+        syndromes = get_syndromes_2(
             primitive_polynomial=primitive_polynomial,
             received_message=received_message,
             cyclotomic_cosets=cyclotomic_cosets,
             logarithmic_table=logarithmic_table,
             n=n,
             t=t
-        ) == [8, 1, 6, 2]
+        )
+        assert syndromes == [0, 0, 29, 0, 23, 27]
+        check = set()
+        counter = 0
+        print()
+        collision_map = {}
+        # for i in range(2 ** (2 ** n - 2)):
+        #     syndromes_string = ''.join(str(number) for number in get_syndromes(
+        #         primitive_polynomial=primitive_polynomial,
+        #         received_message=i,
+        #         cyclotomic_cosets=cyclotomic_cosets,
+        #         logarithmic_table=logarithmic_table,
+        #         n=n,
+        #         t=t
+        #     ))
+        #     if syndromes_string in check:
+        #         counter += 1
+        #         collision_map[syndromes_string] += 1
+        #     else:
+        #         check.add(syndromes_string)
+        #         collision_map[syndromes_string] = 1
+        # for pair in collision_map.items():
+        #     print("{0}: {1}".format(pair[0], pair[1]))
+        # assert counter == 0
 
     def test_berlekamp_massey_decode(self):
         n = 4
-        t = 3
-        primitive_polynomial = 0b11001
-        received_message = 0b100100100000001
+        t = 2
+        primitive_polynomial = 0b10011
+        received_message = 0b000011001100011
         cyclotomic_cosets = get_cyclotomic_cosets(n)
         logarithmic_table = build_logarithmic_table(n, primitive_polynomial)
         syndromes = get_syndromes(
@@ -76,11 +102,10 @@ class BchTest(unittest.TestCase):
             t=t
         )
         assert berlekamp_massey_decode(
-            syndromes=[11, 7, 13, 14, 0, 11],
-            primitive_polynomial=primitive_polynomial,
+            syndromes=syndromes,
             logarithmic_table=logarithmic_table,
             n=n,
-            t=t) == [0, 11, 2, 3, -1, -1]
+            t=t) == [1, 4, 9, 0]
 
     def test_find_roots_of_sigma(self):
         n = 4
@@ -96,6 +121,53 @@ class BchTest(unittest.TestCase):
 
     def test_get_error_positions(self):
         assert sorted(get_error_positions([0, 3, 9], 4)) == [1, 6, 12]
+
+    def test_decode(self):
+        n = 4
+        t = 2
+        primitive_polynomial = 0b10011
+        received_message = 16896
+        cyclotomic_cosets = get_cyclotomic_cosets(n)
+        logarithmic_table = build_logarithmic_table(n, primitive_polynomial)
+        assert decode(primitive_polynomial, received_message, cyclotomic_cosets, logarithmic_table, n, t) >> n * t == 0
+
+    def test_encode_decode(self):
+        n = 4
+        t = 2
+        cyclotomic_cosets = get_cyclotomic_cosets(n)
+        primitive_polynomial = get_primitive_polynomial(n=n, k=1)
+        logarithmic_table = build_logarithmic_table(n, primitive_polynomial)
+        generator_polynomal = calculate_generator_polynomial(
+            primitive_polynomial=primitive_polynomial,
+            cyclotomic_cosets=cyclotomic_cosets,
+            logarithmic_table=logarithmic_table,
+            n=n,
+            t=t
+        )
+        count = 0
+        for i in range(1000):
+            error_vector = get_random_number_of_hamming_weight(2 ** n - 1, t)
+            for message in range(0, 2 ** (2 ** n - 1 - n * t)):
+                codeword = encode(generator_polynomal, message, n, t)
+                received_message = codeword ^ error_vector
+                decoded = decode(primitive_polynomial, received_message, cyclotomic_cosets, logarithmic_table, n, t)
+                if decoded != message:
+                    count += 1
+        assert count == 0
+
+    def test_get_random_number_of_hamming_weight(self):
+        for i in range(100):
+            length = random.randrange(100)
+            if length == 0:
+                continue
+            weight = random.randrange(length)
+            probe = get_random_number_of_hamming_weight(length=length, weight=weight)
+            assert get_hamming_weight(num=probe) == weight
+
+    def test_get_hamming_weight(self):
+        assert get_hamming_weight(num=7) == 3
+        assert get_hamming_weight(num=8) == 1
+        assert get_hamming_weight(num=1) == 1
 
 
 if __name__ == '__main__':

@@ -79,7 +79,7 @@ class FinateFieldTest(unittest.TestCase):
             counter += 1
         result ^= 1
         assert result == 2 ** (2 ** n - 1) - 1
-        assert counter > n
+        assert counter >= n
 
     def test_get_positions_of_binary_ones(self):
         print()
