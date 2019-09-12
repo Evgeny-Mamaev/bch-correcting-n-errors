@@ -3,21 +3,38 @@ import unittest
 
 from bch import BCH, calculate_generator_polynomial, encode, reverse_int, get_nth_bit, get_syndromes, \
     get_order_of_sigma, find_roots_of_sigma, get_error_positions, decode, \
-    get_random_number_of_hamming_weight, berlekamp_massey_decode, get_hamming_weight
+    get_random_number_of_hamming_weight, berlekamp_massey_decode, get_hamming_weight, text_to_bits, \
+    translate_message_to_bits_and_split_on_blocks_of_length_k, initiate, \
+    translate_bits_to_message_and_glue_blocks_of_length_k
 from finatefield import get_primitive_polynomial, get_cyclotomic_cosets, build_logarithmic_table
+from noisychannel import stage_encoding, stage_distorting, stage_decoding
 
 
 class BchTest(unittest.TestCase):
     n = 4
+    power = 4
     k = 1
     t = 2
     d = 2 * t + 1
+    p = 0.1
 
     def test_init(self):
-        BCH(self.n, self.k, self.t)
+        code = BCH(self.p, 2 ** self.power - 1)
+        envelope = "Both of these issues are fixed by postponing the evaluation of annotations. Instead of compiling " \
+                   "code which executes expressions in annotations at their definition time, the compiler stores the " \
+                   "annotation in a string form equivalent to the AST of the expression in question. If needed, " \
+                   "annotations can be resolved at runtime using typing.get_type_hints(). In the common case where " \
+                   "this is not required, the annotations are cheaper to store (since short strings are interned by " \
+                   "the interpreter) and make startup time faster."
+        codewords = stage_encoding(code, envelope)
+        distorted_codewords = stage_distorting(code, codewords)
+        decoded = stage_decoding(code, distorted_codewords)
+        print("Stage: recovering...")
+        print("__________________")
+        assert translate_bits_to_message_and_glue_blocks_of_length_k(decoded, code.k) == envelope
 
     def test_calculate_generator_polynomial(self):
-        primitive_polynomial = get_primitive_polynomial(n=self.n, k=1)
+        primitive_polynomial = get_primitive_polynomial(power=self.n, k=1)
         print("{0:b}".format(primitive_polynomial))
         cyclotomic_cosets = get_cyclotomic_cosets(n=self.n)
         for coset in cyclotomic_cosets:
@@ -34,7 +51,8 @@ class BchTest(unittest.TestCase):
 
     def test_encode(self):
         n = 4
-        assert encode(0b111010001, 0b1101101, n) == 0b110110110110110
+        t = 2
+        assert encode(0b111010001, 0b1101101, n, t) == 0b110110110110110
 
     def test_reverse_int(self):
         a = 0b1101000000
@@ -54,7 +72,7 @@ class BchTest(unittest.TestCase):
         received_message = 0b100101000000001
         cyclotomic_cosets = get_cyclotomic_cosets(n)
         logarithmic_table = build_logarithmic_table(n, primitive_polynomial)
-        syndromes = get_syndromes_2(
+        syndromes = get_syndromes(
             primitive_polynomial=primitive_polynomial,
             received_message=received_message,
             cyclotomic_cosets=cyclotomic_cosets,
@@ -63,28 +81,6 @@ class BchTest(unittest.TestCase):
             t=t
         )
         assert syndromes == [0, 0, 29, 0, 23, 27]
-        check = set()
-        counter = 0
-        print()
-        collision_map = {}
-        # for i in range(2 ** (2 ** n - 2)):
-        #     syndromes_string = ''.join(str(number) for number in get_syndromes(
-        #         primitive_polynomial=primitive_polynomial,
-        #         received_message=i,
-        #         cyclotomic_cosets=cyclotomic_cosets,
-        #         logarithmic_table=logarithmic_table,
-        #         n=n,
-        #         t=t
-        #     ))
-        #     if syndromes_string in check:
-        #         counter += 1
-        #         collision_map[syndromes_string] += 1
-        #     else:
-        #         check.add(syndromes_string)
-        #         collision_map[syndromes_string] = 1
-        # for pair in collision_map.items():
-        #     print("{0}: {1}".format(pair[0], pair[1]))
-        # assert counter == 0
 
     def test_berlekamp_massey_decode(self):
         n = 4
@@ -132,10 +128,10 @@ class BchTest(unittest.TestCase):
         assert decode(primitive_polynomial, received_message, cyclotomic_cosets, logarithmic_table, n, t) >> n * t == 0
 
     def test_encode_decode(self):
-        n = 4
-        t = 2
+        n = 2
+        t = 1
         cyclotomic_cosets = get_cyclotomic_cosets(n)
-        primitive_polynomial = get_primitive_polynomial(n=n, k=1)
+        primitive_polynomial = get_primitive_polynomial(power=n, k=1)
         logarithmic_table = build_logarithmic_table(n, primitive_polynomial)
         generator_polynomal = calculate_generator_polynomial(
             primitive_polynomial=primitive_polynomial,
@@ -168,6 +164,24 @@ class BchTest(unittest.TestCase):
         assert get_hamming_weight(num=7) == 3
         assert get_hamming_weight(num=8) == 1
         assert get_hamming_weight(num=1) == 1
+
+    def test_text_to_bits(self):
+        assert text_to_bits("hello") == 0b0110100001100101011011000110110001101111
+
+    def test_translate_message_to_bit_and_split_on_blocks_of_length_k(self):
+        blocks = [0b1101111, 0b1011000,
+                  0b0110001,
+                  0b0101011, 0b0000110, 0b01101]
+        k = 7
+        assert translate_message_to_bits_and_split_on_blocks_of_length_k("hello", k) == blocks
+        assert translate_bits_to_message_and_glue_blocks_of_length_k(blocks, k) == "hello"
+
+    def test_initiate(self):
+        assert initiate(1 / 3, 15) == (1, 3, 1, 2)
+        assert initiate(1 / 3, 10) == (1, 3, 1, 2)
+        assert initiate(1 / 10, 15) == (2, 15, 7, 4)
+        assert initiate(1 / 31, 31) == (1, 31, 26, 5)
+        assert initiate(1 / 100, 100) == (1, 63, 57, 6)
 
 
 if __name__ == '__main__':

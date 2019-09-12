@@ -4,14 +4,16 @@ import yaml
 from itertools import combinations
 
 
-def get_primitive_polynomial(n, k):
+def get_primitive_polynomial(power, k):
     """
     Retrieves a table of primitive
     polynomials from the given in
     the config file, and returns a
     corresponding to the
     parameters polynomial.
-    :param n: length of a code.
+    :param power: the power of 2 in
+                           n
+    the length of a code (2 ).
     :param k: param in the table
     corresponds to the size of the
     polynomial. Maps 1 -> 3,
@@ -19,10 +21,10 @@ def get_primitive_polynomial(n, k):
     :return: a primitive polynomial
     in a binary representation.
     """
-    if n < 1 | n > 51:
+    if power < 1 | power > 51:
         raise ValueError('The parameter n should be 1 <= n <= 51, '
                          'n is {0}'.
-                         format(n))
+                         format(power))
     if k < 1 | k > 3:
         raise ValueError('The parameter k should be 1 <= k <= 3, '
                          'k is {0}'.
@@ -33,9 +35,9 @@ def get_primitive_polynomial(n, k):
         primitive_polynomials = csv.reader(csvfile, delimiter=',')
         for row in primitive_polynomials:
             ints = list(map(lambda x: 0 if x == '' else int(x), row))
-            if ints[0] == n:
+            if ints[0] == power:
                 polynomial_powers = ints[dictionary[k]:dictionary[k + 1]]
-                polynomial_binary = 1 << n
+                polynomial_binary = 1 << power
                 polynomial_binary |= 1
                 for i in polynomial_powers:
                     polynomial_binary |= 1 << i

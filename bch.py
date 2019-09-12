@@ -1,3 +1,4 @@
+import math
 import random
 
 import deprecation
@@ -7,27 +8,38 @@ from finatefield import get_primitive_polynomial, build_logarithmic_table, get_c
 
 
 class BCH(object):
-    def __init__(self, n, k, t):
+    def __init__(self, p, n):
         """
         Constructs a BCH code with the
         specified parameters.
+        :param p: a parameter of a
+        binary symmetric channel.
         :param n: length of a code.
-        :param k: length of a message.
-        :param t: number of errors to
-        be corrected.
         """
-        primitive_polynomial = get_primitive_polynomial(n=n, k=1)
-        logarithmic_table = build_logarithmic_table(n=n, primitive_polynomial=primitive_polynomial)
-        cyclotomic_cosets = get_cyclotomic_cosets(n=n)
-        self.generator_polynomial = calculate_generator_polynomial(
+        t, n, k, power = initiate(p, n)
+        self.t = t
+        self.n = n
+        self.k = k
+        self.power = power
+        primitive_polynomial = get_primitive_polynomial(power=power, k=1)
+        cyclotomic_cosets = get_cyclotomic_cosets(power)
+        logarithmic_table = build_logarithmic_table(power, primitive_polynomial)
+        generator_polynomial = calculate_generator_polynomial(
             primitive_polynomial=primitive_polynomial,
             cyclotomic_cosets=cyclotomic_cosets,
             logarithmic_table=logarithmic_table,
-            n=n,
+            n=power,
             t=t
         )
+        self.primitive_polynomial = primitive_polynomial
+        self.cyclotomic_cosets = cyclotomic_cosets
+        self.logarithmic_table = logarithmic_table
+        self.generator_polynomial = generator_polynomial
         print()
-        print("{0:b}".format(self.generator_polynomial))
+        print("t: {0}".format(t))
+        print("n: {0}".format(n))
+        print("k: {0}".format(k))
+        print("Generator polynomial: {0:b}".format(generator_polynomial))
 
 
 def calculate_generator_polynomial(primitive_polynomial, cyclotomic_cosets, logarithmic_table, n, t):
@@ -475,3 +487,66 @@ def get_hamming_weight(num):
             weight += 1
         num >>= 1
     return weight
+
+
+def translate_message_to_bits_and_split_on_blocks_of_length_k(message, k):
+    bits = text_to_bits(message)
+    blocks = []
+    while bits != 0:
+        block = bits & (2 ** k - 1)
+        blocks.append(block)
+        bits >>= k
+    return blocks
+
+
+def text_to_bits(text, encoding='utf-8', errors='surrogatepass'):
+    return int.from_bytes(text.encode(encoding, errors), 'big')
+
+
+def translate_bits_to_message_and_glue_blocks_of_length_k(blocks, k):
+    result = 0
+    for block in reversed(blocks):
+        result <<= k
+        result ^= block
+    return text_from_bits(result)
+
+
+def text_from_bits(bits, encoding='utf-8', errors='surrogatepass'):
+    return bits.to_bytes((bits.bit_length() + 7) // 8, 'big').decode(encoding, errors) or '\0'
+
+
+def initiate(p, n):
+    if (p > 1 / 3) | (p < 0):
+        raise ValueError('The parameter p should be 0 <= p <= 1/3, '
+                         'p is {0}'.
+                         format(p))
+    power = 0
+    if not is_power_of_two(n + 1):
+        power = len(bin(n)) - 3
+        n = 2 ** power - 1
+    else:
+        power = len(bin(n + 1)) - 3
+    while p * n > power - 1:
+        n = (n + 1) / 2 - 1
+        power -= 1
+    d = 2 * math.ceil(p * n) + 1
+    t = int((d - 1) / 2)
+    k = 2 ** power - 1 - t * power
+    return t, int(n), k, power
+
+
+def is_power_of_two(num):
+    """
+    Determines the binary length of the number and
+    checks whether it has only one 1 => the power of 2.
+    :param num: a number to check.
+    :return: true if the number has only one 1
+    and all the remaining 0, false otherwise.
+    """
+    counter = 0
+    for i in (range(len(bin(num)) - 2)):
+        if num & 1:
+            counter += 1
+        num >>= 1
+        i += 1
+    return counter == 1
