@@ -41,13 +41,14 @@ def stage_encoding(code, envelope):
 def stage_distorting(code, codewords):
     print("Stage: distorting...")
     print("__________________")
+    distorted_codewords = []
     for codeword in codewords:
         error_vector = get_random_number_of_hamming_weight(2 ** code.power - 1, code.t)
         print("Codeword: {0:0>{a}b}, error vector: {1:0>{a}b}, distorted codeword: {2:0>{a}b}".
               format(codeword, error_vector, codeword ^ error_vector, a=code.n))
-        codeword ^= error_vector
+        distorted_codewords.append(codeword ^ error_vector)
     print()
-    return codewords
+    return distorted_codewords
 
 
 def stage_correcting(code, distorted_codewords):

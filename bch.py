@@ -18,8 +18,8 @@ class BCH(object):
         """
         t, n, k, power = initiate(p, n)
         self.t = t
-        self.n = n
         self.k = k
+        self.n = n
         self.power = power
         primitive_polynomial = get_primitive_polynomial(power=power, k=1)
         cyclotomic_cosets = get_cyclotomic_cosets(power)
