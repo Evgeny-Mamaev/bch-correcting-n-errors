@@ -1,13 +1,12 @@
 import random
 import unittest
 
-from bch import BCH, calculate_generator_polynomial, encode, reverse_int, get_nth_bit, get_syndromes, \
+from bch import calculate_generator_polynomial, encode, reverse_int, get_nth_bit, get_syndromes, \
     get_order_of_sigma, find_roots_of_sigma, get_error_positions, decode, \
     get_random_number_of_hamming_weight, berlekamp_massey_decode, get_hamming_weight, text_to_bits, \
     translate_message_to_bits_and_split_on_blocks_of_length_k, initiate, \
     translate_bits_to_message_and_glue_blocks_of_length_k
 from finatefield import get_primitive_polynomial, get_cyclotomic_cosets, build_logarithmic_table
-from noisychannel import stage_encoding, stage_distorting, stage_decoding
 
 
 class BchTest(unittest.TestCase):
@@ -17,21 +16,6 @@ class BchTest(unittest.TestCase):
     t = 2
     d = 2 * t + 1
     p = 0.1
-
-    def test_init(self):
-        code = BCH(self.p, 2 ** self.power - 1)
-        envelope = "Both of these issues are fixed by postponing the evaluation of annotations. Instead of compiling " \
-                   "code which executes expressions in annotations at their definition time, the compiler stores the " \
-                   "annotation in a string form equivalent to the AST of the expression in question. If needed, " \
-                   "annotations can be resolved at runtime using typing.get_type_hints(). In the common case where " \
-                   "this is not required, the annotations are cheaper to store (since short strings are interned by " \
-                   "the interpreter) and make startup time faster."
-        codewords = stage_encoding(code, envelope)
-        distorted_codewords = stage_distorting(code, codewords)
-        decoded = stage_decoding(code, distorted_codewords)
-        print("Stage: recovering...")
-        print("__________________")
-        assert translate_bits_to_message_and_glue_blocks_of_length_k(decoded, code.k) == envelope
 
     def test_calculate_generator_polynomial(self):
         primitive_polynomial = get_primitive_polynomial(power=self.n, k=1)
@@ -173,8 +157,9 @@ class BchTest(unittest.TestCase):
                   0b0110001,
                   0b0101011, 0b0000110, 0b01101]
         k = 7
+        bits = 0b0110100001100101011011000110110001101111
         assert translate_message_to_bits_and_split_on_blocks_of_length_k("hello", k) == blocks
-        assert translate_bits_to_message_and_glue_blocks_of_length_k(blocks, k) == "hello"
+        assert translate_bits_to_message_and_glue_blocks_of_length_k(blocks, k) == (bits, "hello")
 
     def test_initiate(self):
         assert initiate(1 / 3, 15) == (1, 3, 1, 2)

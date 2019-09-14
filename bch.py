@@ -508,7 +508,7 @@ def translate_bits_to_message_and_glue_blocks_of_length_k(blocks, k):
     for block in reversed(blocks):
         result <<= k
         result ^= block
-    return text_from_bits(result)
+    return result, text_from_bits(result)
 
 
 def text_from_bits(bits, encoding='utf-8', errors='surrogatepass'):
