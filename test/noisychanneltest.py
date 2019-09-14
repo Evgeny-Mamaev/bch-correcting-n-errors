@@ -6,7 +6,7 @@ from noisychannel import transmit_envelope_through_noisy_channel
 
 class NoisyChannelTest(unittest.TestCase):
     power = 4
-    p = 0.1
+    p = 0.2
 
     def test_stage_encoding(self):
         code = BCH(p=self.p, n=2 ** self.power - 1)

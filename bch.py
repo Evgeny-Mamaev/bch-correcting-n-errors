@@ -1,9 +1,7 @@
 import math
 import random
 
-import deprecation
-
-from finatefield import get_primitive_polynomial, build_logarithmic_table, get_cyclotomic_cosets, multiply_polynomials, \
+from finitefield import get_primitive_polynomial, build_logarithmic_table, get_cyclotomic_cosets, multiply_polynomials, \
     get_polynomial_from_roots, divide_polynomials, get_positions_of_binary_ones, polynomial_of_argument_to_power
 
 
@@ -13,22 +11,23 @@ class BCH(object):
         Constructs a BCH code with the
         specified parameters.
         :param p: a parameter of a
-        binary symmetric channel.
+        binary symmetric channel,
+        the error probability.
         :param n: length of a code.
         """
-        t, n, k, power = initiate(p, n)
+        t, n, k, power = initiate(p=p, n=n)
         self.t = t
-        self.k = k
         self.n = n
+        self.k = k
         self.power = power
         primitive_polynomial = get_primitive_polynomial(power=power, k=1)
-        cyclotomic_cosets = get_cyclotomic_cosets(power)
-        logarithmic_table = build_logarithmic_table(power, primitive_polynomial)
+        cyclotomic_cosets = get_cyclotomic_cosets(power=power)
+        logarithmic_table = build_logarithmic_table(power=power, primitive_polynomial=primitive_polynomial)
         generator_polynomial = calculate_generator_polynomial(
             primitive_polynomial=primitive_polynomial,
             cyclotomic_cosets=cyclotomic_cosets,
             logarithmic_table=logarithmic_table,
-            n=power,
+            power=power,
             t=t
         )
         self.primitive_polynomial = primitive_polynomial
@@ -42,7 +41,7 @@ class BCH(object):
         print("Generator polynomial: {0:b}".format(generator_polynomial))
 
 
-def calculate_generator_polynomial(primitive_polynomial, cyclotomic_cosets, logarithmic_table, n, t):
+def calculate_generator_polynomial(primitive_polynomial, cyclotomic_cosets, logarithmic_table, power, t):
     """
     Calculates a generator polynomial of
     a particular BCH code.
@@ -53,8 +52,8 @@ def calculate_generator_polynomial(primitive_polynomial, cyclotomic_cosets, loga
     field.
     :param logarithmic_table: a convenient form
     of the field elements for multiplication.
-                               n
-    :param n: the power in GF(2 ).
+                                   power
+    :param power: the power in GF(2     ).
     :param t: a number of errors to correct.
     :return: a generator polynomial which is
     a product of several polynomails including
@@ -67,13 +66,13 @@ def calculate_generator_polynomial(primitive_polynomial, cyclotomic_cosets, loga
             polynomial1=generator_polynomial,
             polynomial2=get_polynomial_from_roots(
                 roots=cyclotomic_cosets[i],
-                n=n,
+                power=power,
                 logarithmic_table=logarithmic_table)
         )
     return generator_polynomial
 
 
-def encode(generator_polynomial, message, n, t):
+def encode(generator_polynomial, message, power, t):
     """
     Encodes a message by shifting
     it to the highest power and
@@ -83,16 +82,16 @@ def encode(generator_polynomial, message, n, t):
     a generator polynomial of a
     certain finite field GF.
     :param message: a message to encode.
-                               n
-    :param n: the power in GF(2 ).
+                                   power
+    :param power: the power in GF(2     ).
     :param t: a number of errors to correct.
     :return: an encoded message.
     """
-    message = message << n * t
+    message = message << power * t
     return message ^ divide_polynomials(polynomial1=message, polynomial2=generator_polynomial)[1]
 
 
-def get_syndromes(primitive_polynomial, received_message, cyclotomic_cosets, logarithmic_table, n, t):
+def get_syndromes(primitive_polynomial, received_message, cyclotomic_cosets, logarithmic_table, power, t):
     """
     Calculates syndromes based on a particular
     received message, in number of 2 * t.
@@ -113,31 +112,31 @@ def get_syndromes(primitive_polynomial, received_message, cyclotomic_cosets, log
 
     :param primitive_polynomial: a primitive
     polynomial, primitive in sense of the
-              n
-    given GF(2 ).
+              power
+    given GF(2     ).
     :param received_message: a message which
     was received by the decoder.
     :param cyclotomic_cosets: cyclotomic cosets
     for building minimal polynomials.
     :param logarithmic_table: a convenient form
     of the field elements for multiplication.
-                               n
-    :param n: the power in GF(2 )
+                                   power
+    :param power: the power in GF(2     ).
     :param t: a number of errors to correct.
     :return: a list of powers of a primitive
     element a as shortcuts for polynomials.
     """
     length = t * 2
     syndromes = [0] * length
-    flipped_logarithmic_table = flip_dictionary(logarithmic_table)
+    flipped_logarithmic_table = flip_dictionary(dictionary=logarithmic_table)
     for i in cyclotomic_cosets:
-        for position in get_positions_of_binary_ones(i):
+        for position in get_positions_of_binary_ones(number=i):
             if position - 1 < length:
                 syndrome_polynomial = divide_polynomials(
                     polynomial1=received_message,
                     polynomial2=get_polynomial_from_roots(
                         roots=i,
-                        n=n,
+                        power=power,
                         logarithmic_table=logarithmic_table)
                 )[1]
                 syndrome_polynomial_of_argument_to_power = polynomial_of_argument_to_power(
@@ -163,72 +162,7 @@ def flip_dictionary(dictionary):
     return dict((v, k) for k, v in dictionary.items())
 
 
-@deprecation.deprecated(deprecated_in="1.0",
-                        details="Use the berlekamp_massey_decode function instead")
-def berlekamp_massey_decode_2(syndromes, primitive_polynomial, logarithmic_table, n, t):
-    flipped_logarithmic_table = flip_dictionary(logarithmic_table)
-    length = len(syndromes)
-    discrepancy = -1
-    l = 0
-    discrepancy_last_not_null = -1
-    sigma = [-1] * length
-    sigma[0] = 0
-    sigma_order = 0
-    i = 0
-    l_ro = 1
-    ro_last_not_null_discrepancy = -1
-    ro_last_not_null_discrepancy_previous = -1
-    # due to sigma represents a polynomial with
-    # coefficients if form of powers of a primitive
-    # element of the field the special case is
-    # considered on the 0th place:
-    # the -1 means the place is empty
-    # 0 means the place is occupied by 1,
-    #            0
-    # since alpha  = 1.
-    sigma_last_not_null_discrepancy = [-1] * length
-    sigma_last_not_null_discrepancy[0] = 0
-    sigma_last_not_null_discrepancy_previous = [-1] * length
-    sigma_last_not_null_discrepancy_previous[0] = 0
-    discrepancy_last_not_null_reciprocal = 0
-    while i < l + t:
-        d_intermediate = 0
-        for j in range(i + 1):
-            if (syndromes[i - j] < 0) | (sigma[j] < 0):
-                continue
-            if j == 0:
-                d_intermediate |= 1 << syndromes[i - j]
-            else:
-                if sigma[j] > 0:
-                    d_intermediate ^= 1 << syndromes[i - j] + sigma[j] if sigma[j] >= 0 else 0
-        discrepancy = flipped_logarithmic_table[divide_polynomials(d_intermediate, primitive_polynomial)[1]]
-        if discrepancy != -1:
-            for k in range(length):
-                shift = k - i + ro_last_not_null_discrepancy
-                if (shift < 0) | (sigma_last_not_null_discrepancy_previous[shift] < 0):
-                    continue
-                intermediate = discrepancy + discrepancy_last_not_null_reciprocal + \
-                               sigma_last_not_null_discrepancy_previous[shift]
-                if intermediate == sigma[k]:
-                    sigma[k] = -1
-                    continue
-                intermediate = flipped_logarithmic_table[divide_polynomials(
-                    logarithmic_table[sigma[k]] ^ logarithmic_table[
-                        intermediate % (2 ** n - 1)], primitive_polynomial)[1]]
-                sigma[k] = intermediate % (2 ** n - 1)
-            sigma_last_not_null_discrepancy_previous = sigma_last_not_null_discrepancy.copy()
-            sigma_last_not_null_discrepancy = sigma.copy()
-            discrepancy_last_not_null = discrepancy
-            discrepancy_last_not_null_reciprocal = 2 ** n - 1 - (
-                discrepancy_last_not_null if discrepancy_last_not_null >= 0 else 0)
-            l = max(l, l_ro + i - (ro_last_not_null_discrepancy if ro_last_not_null_discrepancy >= 0 else 0))
-            l_ro = get_order_of_sigma(sigma_last_not_null_discrepancy_previous)
-            ro_last_not_null_discrepancy = i
-        i += 1
-    return sigma
-
-
-def berlekamp_massey_decode(syndromes, logarithmic_table, n, t):
+def berlekamp_massey_decode(syndromes, logarithmic_table, power, t):
     """
     Calculates an error locator polynomial using
     the Berlekamp-Massey algorithm.
@@ -258,8 +192,8 @@ def berlekamp_massey_decode(syndromes, logarithmic_table, n, t):
     :param logarithmic_table: a mapping of a
     power to a corresponding element of a particular
     Galois field.
-                                              n
-    :param n: the power in a Galois field GF(2 )
+                                                  power
+    :param power: the power in a Galois field GF(2     ).
     :param t: a number of error to be corrected.
     :return: an array representing an error locator
     polynomial.
@@ -271,8 +205,8 @@ def berlekamp_massey_decode(syndromes, logarithmic_table, n, t):
     In these cells the powers of α are stored.
 
     """
-    flipped_logarithmic_table = flip_dictionary(logarithmic_table)
-    number_of_elements = 2 ** n - 1
+    flipped_logarithmic_table = flip_dictionary(dictionary=logarithmic_table)
+    number_of_elements = 2 ** power - 1
     capital_lambdas = [[0] * (2 * t + 1)] * (2 * t + 1)
     capital_lambdas[-1][0] = 1
     capital_lambdas[0][0] = 1
@@ -280,11 +214,13 @@ def berlekamp_massey_decode(syndromes, logarithmic_table, n, t):
     deltas = [0] * (2 * t + 1)
     deltas[0] = 1
     for k in range(1, 2 * t + 1):
+        # calculates ∆
         for i in range(capital_ls[k - 1] + 1):
             if (k - 1 - i < len(syndromes)) and (syndromes[k - 1 - i] >= 0) and (capital_lambdas[k - 1][i] > 0):
                 deltas[k] ^= logarithmic_table[
                     (flipped_logarithmic_table[capital_lambdas[k - 1][i]] + syndromes[k - 1 - i]) % number_of_elements
                     ]
+        # ends
         m_bag = []
         for i in range(k):
             if capital_ls[i] == capital_ls[k - 1]:
@@ -304,6 +240,10 @@ def berlekamp_massey_decode(syndromes, logarithmic_table, n, t):
                          number_of_elements - flipped_logarithmic_table[deltas[m]]
                          ) % number_of_elements
                         ]
+            #                    [k-1]
+            # inlines arrays of Λ      and the addition from the k-th iteration,
+            #             [k]
+            # calculates Λ   .
             who = len(capital_lambdas[k]) - len(multiplied_c_l)
             if who <= 0:
                 for i in range(who):
@@ -313,6 +253,7 @@ def berlekamp_massey_decode(syndromes, logarithmic_table, n, t):
                     multiplied_c_l.append(0)
             for i in range(len(capital_lambdas[k])):
                 capital_lambdas[k][i] = capital_lambdas[k][i] ^ multiplied_c_l[i]
+            # ends
             capital_ls[k] = max(capital_ls[k - 1], capital_ls[m - 1] + k - m)
     result = []
     for i in capital_lambdas[2 * t]:
@@ -320,7 +261,7 @@ def berlekamp_massey_decode(syndromes, logarithmic_table, n, t):
     return result
 
 
-def find_roots_of_sigma(sigma, n, logarithmic_table):
+def find_roots_of_sigma(sigma, power, logarithmic_table):
     """
     Tries all the elements of a field to solve an
     error polynomial equls to zero.
@@ -332,40 +273,40 @@ def find_roots_of_sigma(sigma, n, logarithmic_table):
                                   0               1
     to the position. array[0] is x , array[1] is x .
     In these cells the powers of α are stored.
-                                              n
-    :param n: the power in a Galois field GF(2 )
+                                                  power
+    :param power: the power in a Galois field GF(2     ).
     :param logarithmic_table: a mapping of a power
     to a corresponding element of a particular
     Galois field.
     :return: an array of roots of a sigma.
     """
     roots = []
-    for candidate in range(2 ** n - 1):
+    for candidate in range(2 ** power - 1):
         result = logarithmic_table[sigma[0]]
-        for power in range(1, get_order_of_sigma(sigma) + 1):
-            if sigma[power] >= 0:
-                result ^= logarithmic_table[(sigma[power] + candidate * power) % (2 ** n - 1)]
+        for polynomial_power in range(1, get_order_of_sigma(sigma=sigma) + 1):
+            if sigma[polynomial_power] >= 0:
+                result ^= logarithmic_table[(sigma[polynomial_power] + candidate * polynomial_power) % (2 ** power - 1)]
         if result == 0:
             roots.append(candidate)
     return roots
 
 
-def get_error_positions(roots, n):
+def get_error_positions(roots, power):
     """
     Flips the established roots of
     an error locator polynomial to
     the positions of errors.
     :param roots: an array of roots
     of an error locator polynomial.
-    :param n: the power in a Galois
-              n
-    field GF(2 )
+    :param power: the power in a Galois
+              power
+    field GF(2     ).
     :return: an array of error
     positions.
     """
     positions = []
     for root in roots:
-        positions.append((2 ** n - 1 - root) % (2 ** n - 1))
+        positions.append((2 ** power - 1 - root) % (2 ** power - 1))
     return positions
 
 
@@ -386,7 +327,7 @@ def get_order_of_sigma(sigma):
     return 0
 
 
-def decode(primitive_polynomial, received_message, cyclotomic_cosets, logarithmic_table, n, t):
+def decode(primitive_polynomial, received_message, cyclotomic_cosets, logarithmic_table, power, t):
     """
     Performs decoding of a received message.
     :param primitive_polynomial: a primitive
@@ -399,19 +340,32 @@ def decode(primitive_polynomial, received_message, cyclotomic_cosets, logarithmi
     :param logarithmic_table: a mapping from
     the power of a primitive element of a Galois
     field to this element.
-    :param n: the power in the Galois field
-       n
-    G(2 ).
+    :param power: the power in the Galois field
+       power
+    G(2     ).
     :param t: a number of errors to be corrected.
     :return: a decoded message.
     """
-    syndromes = get_syndromes(primitive_polynomial, received_message, cyclotomic_cosets, logarithmic_table, n, t)
-    sigma = berlekamp_massey_decode(syndromes, logarithmic_table, n, t)
-    roots = find_roots_of_sigma(sigma, n, logarithmic_table)
-    error_positions = get_error_positions(roots, n)
+    syndromes = get_syndromes(
+        primitive_polynomial=primitive_polynomial,
+        received_message=received_message,
+        cyclotomic_cosets=cyclotomic_cosets,
+        logarithmic_table=logarithmic_table,
+        power=power,
+        t=t)
+    sigma = berlekamp_massey_decode(
+        syndromes=syndromes,
+        logarithmic_table=logarithmic_table,
+        power=power,
+        t=t)
+    roots = find_roots_of_sigma(
+        sigma=sigma,
+        power=power,
+        logarithmic_table=logarithmic_table)
+    error_positions = get_error_positions(roots=roots, power=power)
     for position in error_positions:
         received_message ^= 1 << position
-    received_message >>= n * t
+    received_message >>= power * t
     return received_message
 
 
@@ -490,6 +444,13 @@ def get_hamming_weight(num):
 
 
 def translate_message_to_bits_and_split_on_blocks_of_length_k(message, k):
+    """
+    Translates a message to bit representation and splits bits
+    on blocks of length k.
+    :param message: a message to translate.
+    :param k: length of a block.
+    :return: an array of binary blocks.
+    """
     bits = text_to_bits(message)
     blocks = []
     while bits != 0:
@@ -500,10 +461,23 @@ def translate_message_to_bits_and_split_on_blocks_of_length_k(message, k):
 
 
 def text_to_bits(text, encoding='utf-8', errors='surrogatepass'):
+    """
+    Translates given text to bits.
+    :param text: a string to translate.
+    :param encoding: a used encoding.
+    :param errors: an error attitude.
+    :return: a bit vector.
+    """
     return int.from_bytes(text.encode(encoding, errors), 'big')
 
 
 def translate_bits_to_message_and_glue_blocks_of_length_k(blocks, k):
+    """
+    Translates an array of bit vectors to string.
+    :param blocks: an array of bit vectors.
+    :param k: length of a bit vector.
+    :return: a string of united translated vectors.
+    """
     result = 0
     for block in reversed(blocks):
         result <<= k
@@ -512,10 +486,30 @@ def translate_bits_to_message_and_glue_blocks_of_length_k(blocks, k):
 
 
 def text_from_bits(bits, encoding='utf-8', errors='surrogatepass'):
+    """
+    Translates a bit array to string.
+    :param bits: a bit array.
+    :param encoding: a used encoding.
+    :param errors: an error attitude.
+    :return: a string.
+    """
     return bits.to_bytes((bits.bit_length() + 7) // 8, 'big').decode(encoding, errors) or '\0'
 
 
 def initiate(p, n):
+    """
+    Initiates a process of data transmission.
+    :param p: an error probability in a channel.
+    :param n: a wished length of a codeword, which
+    may be corrected corresponding to the balance
+    of the parameters p and n (n used recursively).
+    :return: a number of errors which can be
+    corrected by a BCH code, p, a corrected n,
+    length of a message as an input to the channel,
+                         power
+    and the power of GF(2     ) which corresponds to
+    n.
+    """
     if (p > 1 / 3) | (p < 0):
         raise ValueError('The parameter p should be 0 <= p <= 1/3, '
                          'p is {0}'.

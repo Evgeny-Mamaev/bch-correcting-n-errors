@@ -19,13 +19,12 @@ class FinateFieldTest(unittest.TestCase):
     d = 2 * t + 1
 
     def test_get_primitive_polynomial(self):
-        assert get_primitive_polynomial(10, 3) == 0b10011100111
+        assert get_primitive_polynomial(power=10, k=3) == 0b10011100111
 
     def test_trim_polynomial(self):
         assert (trim_polynomial(polynomial=15, length=3)) == 7
 
     def test_build_logarithmic_table(self):
-        print()
         primitive_polynomial = 0b10011100111
         power = 10
         number_of_elements = 2 ** power
@@ -34,7 +33,7 @@ class FinateFieldTest(unittest.TestCase):
             a = random.randrange(number_of_elements - 1)
             b = random.randrange(number_of_elements - 1)
             expected = divide_polynomials(
-                polynomial1=multiply_polynomials(table[a], table[b]),
+                polynomial1=multiply_polynomials(polynomial1=table[a], polynomial2=table[b]),
                 polynomial2=primitive_polynomial)[1]
             actual = table[(a + b) % (number_of_elements - 1)]
             assert actual == expected
@@ -83,7 +82,7 @@ class FinateFieldTest(unittest.TestCase):
         assert counter >= power
 
     def test_get_positions_of_binary_ones(self):
-        assert get_positions_of_binary_ones(0b110110) == [1, 2, 4, 5]
+        assert get_positions_of_binary_ones(number=0b110110) == [1, 2, 4, 5]
 
     def test_get_polynomial_from_roots(self):
         power = 4
