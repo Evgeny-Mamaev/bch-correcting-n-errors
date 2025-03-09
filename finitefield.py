@@ -115,19 +115,19 @@ def divide_polynomials(polynomial1, polynomial2):
                       10111
                       11001
                       ______
-            reminder:  1110
+            remainder:  1110
 
     :param polynomial1: 1st polynomial.
     :param polynomial2: 2nd polynomial.
     :return: the quotient and the remainder.
     """
     quotient = 0
-    reminder = polynomial1
-    while len(bin(reminder)) >= len(bin(polynomial2)):
-        shift = len(bin(reminder)) - len(bin(polynomial2))
-        reminder ^= polynomial2 << shift
+    remainder = polynomial1
+    while len(bin(remainder)) >= len(bin(polynomial2)):
+        shift = len(bin(remainder)) - len(bin(polynomial2))
+        remainder ^= polynomial2 << shift
         quotient ^= 1 << shift
-    return quotient, reminder
+    return quotient, remainder
 
 
 def polynomial_of_argument_to_power(polynomial, power):
